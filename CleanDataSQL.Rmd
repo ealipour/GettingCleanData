@@ -1,0 +1,67 @@
+---
+title: "CleanData SQLDF package"
+output: html_document
+keep_md: true
+---
+I am using the American Community Survey data for this program.
+```{r setup, LoadData}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(fig.path = "figure/")
+```
+
+## Using SQLDF on the Ameican Community Survey data
+
+
+```{r acs, message=FALSE, warning=FALSE}
+library(sqldf); 
+#library(RMySQL)
+fileURL <- "https://d396qusza40orc.cloudfront.net/getdata%2Fdata%2Fss06pid.csv"
+acs<-read.csv2(url(fileURL), sep=",")
+```
+
+Let's play a bit with the data. To find the data for the probability weights pwgtp1 with ages less than 50:
+```{r acsplay}
+#Age<50
+B<-sqldf("select pwgtp1, AGEP from acs where AGEP< 50")
+ACS <- as.data.frame(acs)
+distinctAge <- sqldf("select distinct AGEP from acs")
+```
+
+Playing with the html data 
+```{r html, message=FALSE, warning=FALSE}
+con =url("http://biostat.jhsph.edu/~jleek/contact.html")
+#  to read the whole document into one line
+htmlcode = readLines(con)
+c(nchar(htmlcode[10]),nchar(htmlcode[20]),nchar(htmlcode[30]),nchar(htmlcode[100]))
+#library(httr)
+close(con)
+```
+
+And for the fixed width file format (.for)
+```{r for_file}
+df<-read.fwf(file="wksst8110.for", widths=c(12,7,4,9,4,9,4,9,4),skip=4)
+cols <- c(2,3,4,5,6,7,8,9)
+df[cols]<-lapply(df[cols],as.numeric)
+a <- c(lapply(df[cols],sum))
+a
+```
+
+## Registering application with Github:
+
+```{r oauth, message=FALSE, warning=FALSE}
+## note: I ran this in the terminal as opposed to rstudio
+library(httr)
+oauth_endpoints("github")
+myapp <- oauth_app("github",key = "19e7ad83a0a7d9c1cbb5", secret="1c2165aa26240e0060af7d516d48e203e0889df7")
+github_token <- oauth2.0_token(oauth_endpoints("github"), myapp)
+gtoken <- config(token = github_token)
+req <- GET("https://api.github.com/users/jtleek/repos",gtoken)
+stop_for_status(req)
+json1=content(req)
+
+##to better read the Json file
+#json2=jsonlite::fromJSON(toJSON(json1))
+#names(json2)
+## Thanks to https://github.com/r-lib/httr/blob/master/demo/oauth2-github.r
+```
+
