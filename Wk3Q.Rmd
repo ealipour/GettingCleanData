@@ -1,0 +1,141 @@
+---
+title: "Wk3Q"
+output: html_document
+keep_md: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,warning=FALSE, message=FALSE)
+```
+
+Here are all the libraries I have used:
+```{r libraries, ,suppressPackageStartupMessages()}
+library(jpeg); library(dplyr);  
+#library(Hmisc)
+```
+
+##1. ACS housing data
+Loading the data
+
+```{r load_data}
+df <-read.csv("ACSIdahoHous2006.csv")
+```
+The agricultural production column is "AGS" and the land size column is "ACR". From the description in the code-book:
+
+"ACR: Lot size
+
+b N/A (GQ/not a one-family house or mobile home)
+
+1 House on less than one acre
+
+2 House on one to less than ten acres
+
+3 House on ten or more acres
+
+-------------------------------
+
+AGS: Sales of Agriculture Products
+
+b N/A (less than 1 acre/GQ/vacant/2 or more units in structure)
+
+1 None
+
+2 $ 1 - $ 999
+
+3 $ 1000 - $ 2499
+
+4 $ 2500 - $ 4999
+
+5 $ 5000 - $ 9999
+
+6 $10000+"
+
+```{r neededColumns}
+df$AGS <- as.factor(df$AGS)
+summary(df$AGS)
+
+df[, 'ACR'] <- as.factor(df[, 'ACR'])
+summary(df$ACR)
+df$agricultureLogical <-(df$ACR==3 & df$AGS ==6)
+
+summary(df$agricultureLogical)
+#head(df[which(df$agricultureLogical),])
+```
+
+##2. JPG image
+```{r JPG}
+imgfile="./instructor.jpg"
+if(!file.exists(imgfile)){
+     download.file("https://d396qusza40orc.cloudfront.net/getdata%2Fjeff.jpg", imgfile, mode = "wb")}
+img <-readJPEG(imgfile, native = TRUE)
+quantile(img,probs = seq(0, 1, 0.1))
+```
+
+##3. GDP and Education DataSets
+
+```{r GDP_EDU}
+URL1 <- "https://d396qusza40orc.cloudfront.net/getdata%2Fdata%2FGDP.csv"
+GDPfile = "./GDP.csv"
+if(!file.exists(GDPfile)){
+     GDP <-read.csv(URL1, sep=',',strip.white=TRUE,stringsAsFactor=FALSE)
+}
+URL2 <-"https://d396qusza40orc.cloudfront.net/getdata%2Fdata%2FEDSTATS_Country.csv"
+EDUfile="./edu.csv"
+if(!file.exists(EDUfile)){
+     edu <-read.csv(URL2,header=TRUE,stringsAsFactor=FALSE)
+}
+
+edu <- as.data.frame(edu)
+edu_df <- tbl_df(edu)
+#edu_df
+GDP <- as.data.frame(GDP)
+GDP_df <- tbl_df(GDP)
+GDP_df
+```
+While the education data seems well formatted, the GDP is not.  So let's clean up:
+```{r clean_GDP}
+#colnames(GDP_df)
+GDP_df = rename(GDP_df,"CountryCode"=X,"Size_Millions_USD"=X.3,"Long.Name"=X.2,"Ranking"=Gross.domestic.product.2012)
+colnames(GDP_df)
+GDP_df=select(GDP_df,-(6:10),-3)
+
+GDP_df$Ranking <-as.numeric(GDP_df$Ranking)
+
+GDP_df<- mutate(GDP_df,Size_Millions_USD=trimws(Size_Millions_USD))
+#get rid of the , in the numbers; otherwise NAs
+GDP_df<- mutate(GDP_df,Size_Millions_USD=as.numeric(gsub(",", "", Size_Millions_USD,fixed = TRUE)))
+
+summary(GDP_df$Size_Millions_USD)
+```
+Lots of empty rows at the bottom. I am deleting all the rows where CountryCode is not letters.
+```{r MoreEdit}
+GDP_df = filter(GDP_df, CountryCode!=""& Ranking!="")
+tail(GDP_df,n=15)
+```
+The data is cleaner now. Let's merge
+```{r mergeOrder}
+EduGDP<-merge(GDP_df,edu_df,by="CountryCode")
+#Order descending GDP rank
+EduGDP<- arrange(EduGDP,desc(Ranking))
+#tail(EduGDP)
+#head(EduGDP,n=15)
+```
+Make a dataframe for high-income OECD/non-OECD countries
+```{r highincome}
+by_Income <- group_by(EduGDP,Income.Group)
+summarise(by_Income,mean(Ranking))
+```
+
+The table for OECD and GDP quantiles
+```{r quantile}
+#colnames(EduGDP)
+EduGDP <- mutate(EduGDP,RankQuant=cut(Ranking,breaks=6)) 
+#EduGDP$RankQuant
+#library(plyr)
+
+EduGDP%>%filter(Income.Group=="Lower middle income")%>%
+          count(RankQuant,sort = TRUE)
+#tail(EduGDP%>%count(RankQuant,Income.Group,sort = TRUE),n=15)
+EduGDP%>%filter(Income.Group=="Lower middle income")%>%select(CountryCode,RankQuant,Ranking)
+```
+Looks fine now!
