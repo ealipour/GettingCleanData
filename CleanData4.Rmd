@@ -1,0 +1,91 @@
+---
+title: "CleanData4"
+output: html_document
+keep_md: true
+---
+
+```{r setup, include=FALSE, warning=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning=FALSE)
+```
+
+Here are the packages I am using
+```{r usedLibraries, suppressPackageStartupMessages}
+library(dplyr,warn.conflicts = FALSE, quietly=T)
+library(quantmod,warn.conflicts = FALSE,quietly=T)
+library(lubridate,warn.conflicts = FALSE,quietly=T)
+```
+## ACS Idaho Housing
+
+Downloading 2006 American Community Survey housing of the ststae of Idaho.
+```{r download ACS}
+ID2006 ="./ACSIdahoHous2006.csv"
+if (!file.exists(ID2006)){
+     download.file("https://d396qusza40orc.cloudfront.net/getdata%2Fdata%2Fss06hid.csv",ID2006,mode="wb")
+}
+IDHousing <- read.csv(ID2006,stringsAsFactor=FALSE)
+df <-as.data.frame(IDHousing)
+Idaho<- tbl_df(df)
+Idaho
+```
+##Q1: 
+Apply strsplit() to split all the names of the data frame on the characters "wgtp". The value of the 123 element of the resulting list:
+```{r strsplit}
+strsplit(names(Idaho),"wgtp")[[123]]
+```
+##Q2:
+GDP data: Load the Gross Domestic Product data for the 190 ranked countries from the World Bank data, and find the average
+```{r GDP}
+GDPfile ="./GDP.csv"
+if (!file.exists(GDPfile)){
+     download.file("https://d396qusza40orc.cloudfront.net/getdata%2Fdata%2FGDP.csv",GDPfile,mode="wb")
+}
+GDP <- read.csv(GDPfile,stringsAsFactor=FALSE)
+df2 <-as.data.frame(GDP)
+GDP_df<- tbl_df(df2)
+GDP_df = rename(GDP_df,"CountryCode"=X,"Size_Millions_USD"=X.3,"Long.Name"=X.2,"Ranking"=Gross.domestic.product.2012)
+GDP_df=select(GDP_df,-(6:10),-3)
+names(GDP_df)
+
+GDP_df = filter(GDP_df, CountryCode!=""& Ranking!="")
+GDP_df<- mutate(GDP_df,Size_Millions_USD=as.numeric(gsub(",", "", Size_Millions_USD,fixed = TRUE)))
+GDP_df
+mean(GDP_df$Size_Millions_USD)
+```
+
+##Q3: 
+Number of countries that start with the word "United"
+```{r United}
+length(grep("^United",GDP_df$Long.Name))
+```
+
+##Q4:  
+Education data
+```{r education}
+edufile ="./edu.csv"
+URL2 <-"https://d396qusza40orc.cloudfront.net/getdata%2Fdata%2FEDSTATS_Country.csv"
+if (!file.exists(edufile)){
+      download.file(URL2,edufile,mode="wb")
+}
+edu <- read.csv(edufile,header=TRUE,stringsAsFactor=FALSE)
+df3 <-as.data.frame(edu)
+edu_df<- tbl_df(df3)
+grep("[Jj]une",edu_df)
+## showing that the fiscal year end is in Special.Notes column
+length(grep("Fiscal year end: [Jj]une",edu_df$Special.Notes))
+grep("[Jj]une",edu_df$Special.Notes,value = T)
+```
+
+
+##Q5:
+Using Quantmod package to get historical NASDAQ and NYSE stock prices. Sampling Amazon's stock prices
+```{r Amazon,warning=FALSE}
+amzn = getSymbols("AMZN",auto.assign=FALSE,"getSymbols.warning4.0"=FALSE)
+sampleTimes = index(amzn)
+head(sampleTimes)
+```
+Number of values were collected in 2012? on Mondays in 2012?
+```{r dates}
+sum(year(ymd(sampleTimes))==2012)
+sum(year(ymd(sampleTimes))==2012 & (wday(ymd(sampleTimes))==2))
+```
+
